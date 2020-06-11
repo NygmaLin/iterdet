@@ -68,7 +68,7 @@ class GroupConvFCBBoxHead2(BBoxHead):
 
         # Group-aware Representations
         self.groups = groups + 1
-        self.Group_aware_Representations = [nn.Linear(self.shared_out_channels, 512).cuda() for i in range(self.groups)]
+        self.Group_aware_Representations = nn.ModuleList([nn.Linear(self.shared_out_channels, 512) for i in range(self.groups)])
 
         # Groupn Decision Network
         self.Group_Decision_Network = GDN(self.shared_out_channels, self.groups)
@@ -170,7 +170,6 @@ class GroupConvFCBBoxHead2(BBoxHead):
         x_cls = x
         x_reg = x
         Representations = torch.stack([item(x) for item in self.Group_aware_Representations])
-
         x_ENP = self.Group_Decision_Network.forward(x)
         batch_size = x.shape[0]
         GroupProbability = torch.mul(Representations.permute(1, 0, 2), x_ENP.reshape(batch_size, -1, 1))
@@ -265,14 +264,15 @@ class GroupConvFCBBoxHead2(BBoxHead):
                 losses['loss_bbox'] = bbox_pred.sum() * 0
         return losses
 
-class GDN(object):
+class GDN(nn.Module):
     def __init__(self, shared_out_channels, groups):
+        super(GDN, self).__init__()
         self.shared_out_channels = shared_out_channels
         self.groups = groups
-        self.MLP = nn.Sequential(nn.Linear(self.shared_out_channels, 512).cuda(),
-                                 nn.Linear(512, 512).cuda(),
-                                 nn.Linear(512, 256).cuda(),
-                                 nn.Linear(256, self.groups).cuda())
+        self.MLP = nn.Sequential(nn.Linear(self.shared_out_channels, 512),
+                                 nn.Linear(512, 512),
+                                 nn.Linear(512, 256),
+                                 nn.Linear(256, self.groups))
 
     def forward(self, x):
         x = self.MLP(x)
