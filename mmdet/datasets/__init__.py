@@ -8,10 +8,11 @@ from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .crowd_human import CrowdHumanDataset
+from .crowd_human_group_head import CrowdHumanGroupHeadDataset
 
 __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset',
     'CityscapesDataset', 'GroupSampler', 'DistributedGroupSampler',
     'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
-    'WIDERFaceDataset', 'CrowdHumanDataset', 'DATASETS', 'PIPELINES', 'build_dataset'
+    'WIDERFaceDataset', 'CrowdHumanDataset', 'CrowdHumanGroupHeadDataset', 'DATASETS', 'PIPELINES', 'build_dataset'
 ]
