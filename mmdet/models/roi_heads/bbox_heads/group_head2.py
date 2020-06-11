@@ -274,6 +274,7 @@ class GDN(nn.Module):
                                  nn.Linear(512, 256),
                                  nn.Linear(256, self.groups))
 
+
     def forward(self, x):
         x = self.MLP(x)
         x_sf = F.softmax(x)
