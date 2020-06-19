@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y git ninja-build libglib2.0-0 libsm6 lib
 
 # Install mmdetection
 RUN conda clean --all
-RUN git clone https://github.com/open-mmlab/mmdetection.git /mmdetection
-WORKDIR /mmdetection
-ENV FORCE_CUDA="1"
-RUN pip install "git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI"
-RUN pip install --no-cache-dir -e .
+#RUN git clone https://github.com/open-mmlab/mmdetection.git /mmdetection
+#WORKDIR /mmdetection
+#ENV FORCE_CUDA="1"
+#RUN pip install "git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI"
+#RUN pip install --no-cache-dir -e .
