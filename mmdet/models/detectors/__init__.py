@@ -17,10 +17,11 @@ from .single_stage import SingleStageDetector
 from .two_stage import TwoStageDetector
 from .iterdet_faster_rcnn import IterDetFasterRCNN
 from .iterdet_retinanet import IterDetRetinaNet
+from .embedding_rcnn import EmbeddingRCNN
 
 __all__ = [
     'ATSS', 'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
     'RetinaNet', 'FCOS', 'GridRCNN', 'MaskScoringRCNN', 'RepPointsDetector',
-    'FOVEA', 'FSAF', 'IterDetFasterRCNN', 'IterDetRetinaNet'
+    'FOVEA', 'FSAF', 'IterDetFasterRCNN', 'IterDetRetinaNet', 'EmbeddingRCNN'
 ]

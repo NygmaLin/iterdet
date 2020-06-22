@@ -8,7 +8,7 @@ from .test_mixins import RPNTestMixin
 
 
 @DETECTORS.register_module()
-class TwoStageDetectorGroup(BaseDetector, RPNTestMixin):
+class EmbeddingRCNN(BaseDetector, RPNTestMixin):
     """Base class for two-stage detectors.
 
     Two-stage detectors typically consisting of a region proposal network and a
@@ -23,7 +23,7 @@ class TwoStageDetectorGroup(BaseDetector, RPNTestMixin):
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super(TwoStageDetectorGroup, self).__init__()
+        super(EmbeddingRCNN, self).__init__()
         self.backbone = build_backbone(backbone)
 
         if neck is not None:
@@ -57,7 +57,7 @@ class TwoStageDetectorGroup(BaseDetector, RPNTestMixin):
         return hasattr(self, 'roi_head') and self.roi_head is not None
 
     def init_weights(self, pretrained=None):
-        super(TwoStageDetector, self).init_weights(pretrained)
+        super(EmbeddingRCNN, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):

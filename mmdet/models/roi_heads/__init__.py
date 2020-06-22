@@ -11,11 +11,12 @@ from .mask_heads import (FCNMaskHead, FusedSemanticHead, GridHead, HTCMaskHead,
 from .mask_scoring_roi_head import MaskScoringRoIHead
 from .roi_extractors import SingleRoIExtractor
 from .shared_heads import ResLayer
+from .embedding_roi_head import EmbeddingRoIHead
 
 __all__ = [
     'BaseRoIHead', 'CascadeRoIHead', 'DoubleHeadRoIHead', 'MaskScoringRoIHead',
     'HybridTaskCascadeRoIHead', 'GridRoIHead', 'ResLayer', 'BBoxHead',
     'ConvFCBBoxHead', 'Shared2FCBBoxHead', 'Shared4Conv1FCBBoxHead',
     'DoubleConvFCBBoxHead', 'FCNMaskHead', 'HTCMaskHead', 'FusedSemanticHead',
-    'GridHead', 'MaskIoUHead', 'SingleRoIExtractor', 'GroupRoIHead'
+    'GridHead', 'MaskIoUHead', 'SingleRoIExtractor', 'GroupRoIHead', 'EmbeddingRoIHead'
 ]
