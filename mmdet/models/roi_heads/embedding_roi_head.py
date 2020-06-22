@@ -18,6 +18,7 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             self.bbox_assigner = build_assigner(self.train_cfg.assigner)
             self.bbox_sampler = build_sampler(
                 self.train_cfg.sampler, context=self)
+            self.embed_assigner = build_assigner(self.train_cfg.embed_assigner)
 
     def init_bbox_head(self, bbox_roi_extractor, bbox_head):
         self.bbox_roi_extractor = build_roi_extractor(bbox_roi_extractor)
@@ -113,16 +114,16 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             # TODO: add embedding assign and sample part
             embedding_sampling_results = []
             for i in range(num_imgs):
-                assign_result = self.bbox_assigner.assign(
+                embed_assign_result = self.embed_assigner.assign(
                     proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
                     gt_labels[i])
-                sampling_result = self.bbox_sampler.sample(
-                    assign_result,
-                    proposal_list[i],
-                    gt_bboxes[i],
-                    gt_labels[i],
-                    feats=[lvl_feat[i][None] for lvl_feat in x])
-                embedding_sampling_results.append(sampling_result)
+                # sampling_result = self.bbox_sampler.sample(
+                #     assign_result,
+                #     proposal_list[i],
+                #     gt_bboxes[i],
+                #     gt_labels[i],
+                #     feats=[lvl_feat[i][None] for lvl_feat in x])
+                # embedding_sampling_results.append(sampling_result)
 
 
         losses = dict()

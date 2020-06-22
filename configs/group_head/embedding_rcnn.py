@@ -91,6 +91,17 @@ train_cfg = dict(
             pos_fraction=0.25,
             neg_pos_ub=-1,
             add_gt_as_proposals=True),
+        embed_assigner=dict(
+            type='InstanceAssigner',
+            pos_iou_thr=0.5,
+            neg_iou_thr=0.5,
+            min_pos_iou=0.5,
+            match_low_quality=False,
+            ignore_iof_thr=-1
+        ),
+        embed_sampler=dict(
+            type='TripletSampler'
+        ),
         pos_weight=-1,
         debug=False))
 test_cfg = dict(
