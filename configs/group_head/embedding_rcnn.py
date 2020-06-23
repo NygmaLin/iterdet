@@ -50,7 +50,9 @@ model = dict(
             reg_class_agnostic=True,
             loss_cls=dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-            loss_bbox=dict(type='L1Loss', loss_weight=1.0))))
+            loss_bbox=dict(type='L1Loss', loss_weight=1.0),
+            loss_embed=dict(type='TripletLoss', margin=0.2, nu=0.0, loss_weight=1.0)
+        )))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -100,7 +102,13 @@ train_cfg = dict(
             ignore_iof_thr=-1
         ),
         embed_sampler=dict(
-            type='TripletSampler'
+            type='EmbedSampler',
+            num_by_instance=5,
+            add_gt_as_proposals=True
+        ),
+        triplet_sampler=dict(
+            type='DistanceWeightedSampler',
+            batch_k=5,
         ),
         pos_weight=-1,
         debug=False))
@@ -174,13 +182,13 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[16, 22])
+    step=[24, 36])
 # learning policy
-total_epochs = 24
+total_epochs = 48
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=20,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -188,7 +196,7 @@ log_config = dict(
 # yapf:enable
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/data/sdv2/iterdet/work_dirs/faster_rcnn_r50_fpn_2x_group_head'
-load_from = None
+work_dir = '/data/sdv2/iterdet/work_dirs/0623_embed'
+load_from = '/data/sdv2/iterdet/work_dirs/0623_embed/epoch_36.pth'
 resume_from = None
 workflow = [('train', 1)]

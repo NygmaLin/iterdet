@@ -6,9 +6,11 @@ from .ohem_sampler import OHEMSampler
 from .pseudo_sampler import PseudoSampler
 from .random_sampler import RandomSampler
 from .sampling_result import SamplingResult
+from .embed_sampler import EmbedSampler
+from .distance_weighted_sampling import DistanceWeightedSampler
 
 __all__ = [
     'BaseSampler', 'PseudoSampler', 'RandomSampler',
     'InstanceBalancedPosSampler', 'IoUBalancedNegSampler', 'CombinedSampler',
-    'OHEMSampler', 'SamplingResult'
+    'OHEMSampler', 'SamplingResult', 'EmbedSampler', 'DistanceWeightedSampler'
 ]

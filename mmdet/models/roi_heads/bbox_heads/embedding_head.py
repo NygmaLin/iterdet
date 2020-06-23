@@ -9,6 +9,11 @@ from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import accuracy
 
 
+def l2_norm(x):
+    if len(x.shape):
+        x = x.reshape((x.shape[0], -1))
+    return F.normalize(x, p=2, dim=1)
+
 @HEADS.register_module()
 class EmbeddingHead(nn.Module):
     """Simplest RoI head, with only two fc layers for classification and
@@ -35,6 +40,7 @@ class EmbeddingHead(nn.Module):
                      loss_weight=1.0),
                  loss_bbox=dict(
                      type='SmoothL1Loss', beta=1.0, loss_weight=1.0),
+                 loss_embed=dict(type='TripletLoss', margin=0.2, nu=0.0),
                  final_crop=True):
         super(EmbeddingHead, self).__init__()
         assert with_cls or with_reg
@@ -54,6 +60,7 @@ class EmbeddingHead(nn.Module):
         self.bbox_coder = build_bbox_coder(bbox_coder)
         self.loss_cls = build_loss(loss_cls)
         self.loss_bbox = build_loss(loss_bbox)
+        self.loss_embed = build_loss(loss_embed)
 
         in_channels = self.in_channels
         if self.with_avg_pool:
@@ -64,7 +71,8 @@ class EmbeddingHead(nn.Module):
             # need to add background class
             self.fc_cls = nn.Linear(in_channels, num_classes + 1)
         if self.with_embedding:
-            self.fc_embedding = nn.Linear(in_channels, embedding_dim)
+            self.fc_embedding_1 = nn.Linear(in_channels, 1024)
+            self.fc_embedding_2 = nn.Linear(1024, 128)
         if self.with_reg:
             out_dim_reg = 4 if reg_class_agnostic else 4 * num_classes
             self.fc_reg = nn.Linear(in_channels, out_dim_reg)
@@ -79,8 +87,10 @@ class EmbeddingHead(nn.Module):
             nn.init.normal_(self.fc_reg.weight, 0, 0.001)
             nn.init.constant_(self.fc_reg.bias, 0)
         if self.with_embedding:
-            nn.init.normal_(self.fc_embedding.weight, 0, 0.001)
-            nn.init.constant_(self.fc_embedding.bias, 0)
+            nn.init.normal_(self.fc_embedding_1.weight, 0, 0.001)
+            nn.init.constant_(self.fc_embedding_1.bias, 0)
+            nn.init.normal_(self.fc_embedding_2.weight, 0, 0.001)
+            nn.init.constant_(self.fc_embedding_2.bias, 0)
 
     @auto_fp16()
     def forward(self, x):
@@ -90,7 +100,12 @@ class EmbeddingHead(nn.Module):
         x = x.view(x.size(0), -1)
         cls_score = self.fc_cls(x) if self.with_cls else None
         bbox_pred = self.fc_reg(x) if self.with_reg else None
-        embedding = self.fc_embedding(x) if self.with_embedding else None
+        if self.with_embedding:
+            embedding = self.fc_embedding_1(x)
+            embedding = self.fc_embedding_2(embedding)
+            embedding = l2_norm(embedding)
+        else:
+            embedding = None
         return cls_score, bbox_pred, embedding
 
     def _get_target_single(self, pos_bboxes, neg_bboxes, pos_gt_bboxes,
@@ -194,6 +209,11 @@ class EmbeddingHead(nn.Module):
                     reduction_override=reduction_override)
             else:
                 losses['loss_bbox'] = bbox_pred.sum() * 0
+        return losses
+
+    def embed_loss(self, *args):
+        losses = dict()
+        losses['loss_embed'], pair_cnt = self.loss_embed(*args)
         return losses
 
     @force_fp32(apply_to=('cls_score', 'bbox_pred'))

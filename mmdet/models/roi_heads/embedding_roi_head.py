@@ -6,6 +6,7 @@ from .base_roi_head import BaseRoIHead
 from .test_mixins import BBoxTestMixin, MaskTestMixin
 import pdb
 
+
 @HEADS.register_module()
 class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
     """Simplest base roi head including one bbox head and one mask head.
@@ -19,6 +20,8 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             self.bbox_sampler = build_sampler(
                 self.train_cfg.sampler, context=self)
             self.embed_assigner = build_assigner(self.train_cfg.embed_assigner)
+            self.embed_sampler = build_sampler(self.train_cfg.embed_sampler)
+            self.triplet_sampler = build_sampler(self.train_cfg.triplet_sampler)
 
     def init_bbox_head(self, bbox_roi_extractor, bbox_head):
         self.bbox_roi_extractor = build_roi_extractor(bbox_roi_extractor)
@@ -56,7 +59,7 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         if self.with_mask:
             mask_rois = rois[:100]
             mask_results = self._mask_forward(x, mask_rois)
-            outs = outs + (mask_results['mask_pred'], )
+            outs = outs + (mask_results['mask_pred'],)
         return outs
 
     def forward_train(self,
@@ -112,27 +115,33 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 sampling_results.append(sampling_result)
 
             # TODO: add embedding assign and sample part
-            embedding_sampling_results = []
+            total_instances = []
+            instance_labels_total = []
+            embed_sampling_results = []
             for i in range(num_imgs):
-                embed_assign_result = self.embed_assigner.assign(
+                base_num = sum(total_instances)
+                embed_assign_result, num_instances, instance_labels = self.embed_assigner.assign(
                     proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
                     gt_labels[i])
-                # sampling_result = self.bbox_sampler.sample(
-                #     assign_result,
-                #     proposal_list[i],
-                #     gt_bboxes[i],
-                #     gt_labels[i],
-                #     feats=[lvl_feat[i][None] for lvl_feat in x])
-                # embedding_sampling_results.append(sampling_result)
-
+                pos_inds = torch.nonzero(embed_assign_result.labels > 0, as_tuple=False).squeeze()
+                embed_assign_result.labels[pos_inds] += base_num
+                instance_labels += base_num
+                total_instances.append(num_instances)
+                instance_labels_total.append(instance_labels)
+                embed_sampling_result = self.embed_sampler.sample(embed_assign_result,
+                                                                  proposal_list[i],
+                                                                  gt_bboxes[i],
+                                                                  instance_labels
+                                                                  )
+                embed_sampling_results.append(embed_sampling_result)
 
         losses = dict()
         # bbox head forward and loss
         if self.with_bbox:
-            bbox_results = self._bbox_forward_train(x, sampling_results,
-                                                    gt_bboxes, gt_labels,
+            bbox_results = self._bbox_forward_train(x, sampling_results, gt_bboxes, gt_labels, embed_sampling_results,
                                                     img_metas)
             losses.update(bbox_results['loss_bbox'])
+            losses.update(bbox_results['loss_embed'])
 
         # mask head forward and loss
         if self.with_mask:
@@ -156,16 +165,23 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             cls_score=cls_score, bbox_pred=bbox_pred, bbox_feats=bbox_feats, embedding=embedding)
         return bbox_results
 
-    def _bbox_forward_train(self, x, sampling_results, gt_bboxes, gt_labels,
+    def _bbox_forward_train(self, x, sampling_results, gt_bboxes, gt_labels, embed_sampling_results,
                             img_metas):
         rois = bbox2roi([res.bboxes for res in sampling_results])
+        embed_rois = bbox2roi([proposals for proposals in embed_sampling_results])
         bbox_results = self._bbox_forward(x, rois)
+        if len(embed_rois) != 0:
+            embed_bbox_results = self._bbox_forward(x, embed_rois)
+            triplet_results = self.triplet_sampler(embed_bbox_results['embedding'])
+            loss_embed = self.bbox_head.embed_loss(*triplet_results[1:4])
+        else:
+            loss_embed = dict(loss_embed=torch.zeros(1))
 
         bbox_targets = self.bbox_head.get_targets(sampling_results, gt_bboxes,
                                                   gt_labels, self.train_cfg)
 
         loss_bbox = self.bbox_head.loss(bbox_results['cls_score'], bbox_results['bbox_pred'], rois, *bbox_targets)
-
+        bbox_results.update(loss_embed=loss_embed)
         bbox_results.update(loss_bbox=loss_bbox)
         return bbox_results
 

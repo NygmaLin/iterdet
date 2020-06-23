@@ -91,6 +91,8 @@ class InstanceAssigner(BaseAssigner):
             >>> assert torch.all(assign_result.gt_inds == expected_gt_inds)
         """
         instance_labels = list(range(len(gt_bboxes)))
+        instance_labels = torch.Tensor(instance_labels)
+        instance_labels = instance_labels.type_as(gt_labels)
         num_instances = len(instance_labels)
         assign_on_cpu = True if (self.gpu_assign_thr > 0) and (
             gt_bboxes.shape[0] > self.gpu_assign_thr) else False
@@ -126,7 +128,7 @@ class InstanceAssigner(BaseAssigner):
             assign_result.max_overlaps = assign_result.max_overlaps.to(device)
             if assign_result.labels is not None:
                 assign_result.labels = assign_result.labels.to(device)
-        return assign_result
+        return assign_result, num_instances, instance_labels
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
         """Assign w.r.t. the overlaps of bboxes with gts.
