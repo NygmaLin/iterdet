@@ -271,7 +271,7 @@ class EmbeddingRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         """Test without augmentation."""
         assert self.with_bbox, 'Bbox head must be implemented.'
 
-        det_bboxes, det_labels = self.simple_test_bboxes(
+        det_bboxes, det_labels = self.simple_test_embed_bboxes(
             x, img_metas, proposal_list, self.test_cfg, rescale=rescale)
         bbox_results = bbox2result(det_bboxes, det_labels,
                                    self.bbox_head.num_classes)

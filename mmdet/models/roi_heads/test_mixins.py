@@ -13,7 +13,6 @@ if sys.version_info >= (3, 7):
 
 
 class BBoxTestMixin(object):
-
     if sys.version_info >= (3, 7):
 
         async def async_test_bboxes(self,
@@ -70,6 +69,28 @@ class BBoxTestMixin(object):
             cfg=rcnn_test_cfg)
         return det_bboxes, det_labels
 
+    def simple_test_embed_bboxes(self,
+                                 x,
+                                 img_metas,
+                                 proposals,
+                                 rcnn_test_cfg,
+                                 rescale=False):
+        """Test only det bboxes without augmentation."""
+        rois = bbox2roi(proposals)
+        bbox_results = self._bbox_forward(x, rois)
+        img_shape = img_metas[0]['img_shape']
+        scale_factor = img_metas[0]['scale_factor']
+        det_bboxes, det_labels = self.bbox_head.get_embed_bboxes(
+            rois,
+            bbox_results['cls_score'],
+            bbox_results['bbox_pred'],
+            bbox_results['embedding'],
+            img_shape,
+            scale_factor,
+            rescale=rescale,
+            cfg=rcnn_test_cfg)
+        return det_bboxes, det_labels
+
     def aug_test_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
         aug_bboxes = []
         aug_scores = []
@@ -105,7 +126,6 @@ class BBoxTestMixin(object):
 
 
 class MaskTestMixin(object):
-
     if sys.version_info >= (3, 7):
 
         async def async_test_mask(self,

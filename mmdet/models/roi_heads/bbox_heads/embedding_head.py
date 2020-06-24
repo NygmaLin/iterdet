@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
 
 from mmdet.core import (auto_fp16, build_bbox_coder, force_fp32, multi_apply,
-                        multiclass_nms)
+                        multiclass_nms, multiclass_embed_nms)
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.losses import accuracy
 
@@ -13,6 +13,7 @@ def l2_norm(x):
     if len(x.shape):
         x = x.reshape((x.shape[0], -1))
     return F.normalize(x, p=2, dim=1)
+
 
 @HEADS.register_module()
 class EmbeddingHead(nn.Module):
@@ -117,7 +118,7 @@ class EmbeddingHead(nn.Module):
         # original implementation uses new_zeros since BG are set to be 0
         # now use empty & fill because BG cat_id = num_classes,
         # FG cat_id = [0, num_classes-1]
-        labels = pos_bboxes.new_full((num_samples, ),
+        labels = pos_bboxes.new_full((num_samples,),
                                      self.num_classes,
                                      dtype=torch.long)
         label_weights = pos_bboxes.new_zeros(num_samples)
@@ -255,7 +256,47 @@ class EmbeddingHead(nn.Module):
 
             return det_bboxes, det_labels
 
-    @force_fp32(apply_to=('bbox_preds', ))
+    @force_fp32(apply_to=('cls_score', 'bbox_pred', 'embedding'))
+    def get_embed_bboxes(self,
+                         rois,
+                         cls_score,
+                         bbox_pred,
+                         embedding,
+                         img_shape,
+                         scale_factor,
+                         rescale=False,
+                         cfg=None):
+        if isinstance(cls_score, list):
+            cls_score = sum(cls_score) / float(len(cls_score))
+        scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
+
+        if bbox_pred is not None:
+            bboxes = self.bbox_coder.decode(
+                rois[:, 1:], bbox_pred, max_shape=(img_shape if self.final_crop else None))
+        else:
+            bboxes = rois[:, 1:].clone()
+            if img_shape is not None:
+                bboxes[:, [0, 2]].clamp_(min=0, max=img_shape[1])
+                bboxes[:, [1, 3]].clamp_(min=0, max=img_shape[0])
+
+        if rescale:
+            if isinstance(scale_factor, float):
+                bboxes /= scale_factor
+            else:
+                scale_factor = bboxes.new_tensor(scale_factor)
+                bboxes = (bboxes.view(bboxes.size(0), -1, 4) /
+                          scale_factor).view(bboxes.size()[0], -1)
+
+        if cfg is None:
+            return bboxes, scores
+        else:
+            det_bboxes, det_labels = multiclass_embed_nms(bboxes, scores, embedding,
+                                                          cfg.score_thr, cfg.nms,
+                                                          cfg.max_per_img)
+
+            return det_bboxes, det_labels
+
+    @force_fp32(apply_to=('bbox_preds',))
     def refine_bboxes(self, rois, labels, bbox_preds, pos_is_gts, img_metas):
         """Refine bboxes during training.
 
@@ -334,7 +375,7 @@ class EmbeddingHead(nn.Module):
 
         return bboxes_list
 
-    @force_fp32(apply_to=('bbox_pred', ))
+    @force_fp32(apply_to=('bbox_pred',))
     def regress_by_class(self, rois, label, bbox_pred, img_meta):
         """Regress the bbox for the predicted class. Used in Cascade R-CNN.
 

@@ -110,7 +110,7 @@ def soft_nms(dets, iou_thr, method='linear', sigma=0.5, min_score=1e-3):
     if is_tensor:
         return new_dets.to(
             device=dets.device, dtype=dets.dtype), inds.to(
-                device=dets.device, dtype=torch.long)
+            device=dets.device, dtype=torch.long)
     else:
         return new_dets.numpy().astype(dets.dtype), inds.numpy().astype(
             np.int64)
@@ -147,3 +147,65 @@ def batched_nms(bboxes, scores, inds, nms_cfg):
     bboxes = bboxes[keep]
     scores = dets[:, -1]
     return torch.cat([bboxes, scores[:, None]], -1), keep
+
+
+def embed_batched_nms(bboxes, scores, distances, inds, nms_cfg):
+    """Performs non-maximum suppression in a batched fashion.
+
+    Modified from https://github.com/pytorch/vision/blob
+    /505cd6957711af790211896d32b40291bea1bc21/torchvision/ops/boxes.py#L39.
+    In order to perform NMS independently per class, we add an offset to all
+    the boxes. The offset is dependent only on the class idx, and is large
+    enough so that boxes from different classes do not overlap.
+
+    Arguments:
+        bboxes (torch.Tensor): bboxes in shape (N, 4).
+        scores (torch.Tensor): scores in shape (N, ).
+        inds (torch.Tensor): each index value correspond to a bbox cluster,
+            and NMS will not be applied between elements of different inds,
+            shape (N, ).
+        nms_cfg (dict): specify nms type and other parameters like iou_thr.
+
+    Returns:
+        tuple: kept bboxes and indice.
+    """
+    max_coordinate = bboxes.max()
+    offsets = inds.to(bboxes) * (max_coordinate + 1)
+    bboxes_for_nms = bboxes + offsets[:, None]
+    nms_cfg_ = nms_cfg.copy()
+    nms_type = nms_cfg_.pop('type', 'nms')
+    dets = torch.cat([bboxes_for_nms, scores[:, None]], dim=-1)
+    keep = embed_nms(dets, distances, thresh=nms_cfg_['iou_thr'], dist_thr=nms_cfg_['dist_thr'])
+    bboxes = bboxes[keep]
+    scores = scores[keep]
+    return torch.cat([bboxes, scores[:, None]], -1), keep
+
+
+def embed_nms(dets, distances, thresh, dist_thr, mode='iou'):
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+    order = dets[:, 4].argsort(descending=True)
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    keep = []
+    while len(order) > 0:
+        i = order[0]
+        keep.append(i.unsqueeze(dim=0))
+        xx1 = torch.max(x1[i], x1[order[1:]])
+        yy1 = torch.max(y1[i], y1[order[1:]])
+        xx2 = torch.max(x2[i], x2[order[1:]])
+        yy2 = torch.max(y2[i], y2[order[1:]])
+        w = torch.max(torch.zeros_like(xx1), xx2 - xx1 + 1)
+        h = torch.max(torch.zeros_like(yy1), yy2 - yy1 + 1)
+        if mode == 'iou':
+            over = (w * h) / (area[i] + area[order[1:]] - w * h)
+        elif mode == 'iof-h':
+            over = (w * h) / area[i]
+        elif mode == 'iof-l':
+            over = (w * h) / area[order[1:]]
+        distance = distances[i, order[1:]]
+        index = torch.where((over <= thresh) | (distance > dist_thr))[0]
+        order = order[index + 1]
+    keep = torch.cat(keep, dim=0).type(torch.long)
+    return keep

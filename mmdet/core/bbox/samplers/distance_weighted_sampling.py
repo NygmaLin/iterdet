@@ -4,8 +4,6 @@ import numpy as np
 from ..builder import BBOX_SAMPLERS
 
 
-
-
 def get_distance(x):
     _x = x.detach()
     sim = torch.matmul(_x, _x.t())
@@ -16,6 +14,7 @@ def get_distance(x):
     dists = dists.clamp(min=1e-8)
     dists = dists.sqrt()
     return dists
+
 
 @BBOX_SAMPLERS.register_module()
 class DistanceWeightedSampler(nn.Module):
