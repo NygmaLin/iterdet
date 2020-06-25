@@ -194,8 +194,8 @@ def embed_nms(dets, distances, thresh, dist_thr, mode='iou'):
         keep.append(i.unsqueeze(dim=0))
         xx1 = torch.max(x1[i], x1[order[1:]])
         yy1 = torch.max(y1[i], y1[order[1:]])
-        xx2 = torch.max(x2[i], x2[order[1:]])
-        yy2 = torch.max(y2[i], y2[order[1:]])
+        xx2 = torch.min(x2[i], x2[order[1:]])
+        yy2 = torch.min(y2[i], y2[order[1:]])
         w = torch.max(torch.zeros_like(xx1), xx2 - xx1 + 1)
         h = torch.max(torch.zeros_like(yy1), yy2 - yy1 + 1)
         if mode == 'iou':
@@ -205,6 +205,7 @@ def embed_nms(dets, distances, thresh, dist_thr, mode='iou'):
         elif mode == 'iof-l':
             over = (w * h) / area[order[1:]]
         distance = distances[i, order[1:]]
+        distance[over == 0] = 0
         index = torch.where((over <= thresh) | (distance > dist_thr))[0]
         order = order[index + 1]
     keep = torch.cat(keep, dim=0).type(torch.long)

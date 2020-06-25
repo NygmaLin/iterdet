@@ -1,5 +1,5 @@
 model = dict(
-    type='EmbeddingRCNN',
+    type='FasterRCNN',
     pretrained='torchvision://resnet50',
     backbone=dict(
         type='ResNet',
@@ -32,27 +32,26 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
     roi_head=dict(
-        type='EmbeddingRoIHead',
+        type='StandardRoIHead',
         bbox_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', out_size=7, sample_num=0),
             out_channels=256,
             featmap_strides=[4, 8, 16, 32]),
         bbox_head=dict(
-            type='EmbeddingHead',
+            type='Shared2FCBBoxHead',
             in_channels=256,
+            fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=1,
+            num_classes=80,
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
                 target_means=[0., 0., 0., 0.],
                 target_stds=[0.1, 0.1, 0.2, 0.2]),
-            reg_class_agnostic=True,
+            reg_class_agnostic=False,
             loss_cls=dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-            loss_bbox=dict(type='L1Loss', loss_weight=1.0),
-            loss_embed=dict(type='TripletLoss', margin=0.2, nu=0.0, loss_weight=1.0)
-        )))
+            loss_bbox=dict(type='L1Loss', loss_weight=1.0))))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -93,23 +92,6 @@ train_cfg = dict(
             pos_fraction=0.25,
             neg_pos_ub=-1,
             add_gt_as_proposals=True),
-        embed_assigner=dict(
-            type='InstanceAssigner',
-            pos_iou_thr=0.5,
-            neg_iou_thr=0.5,
-            min_pos_iou=0.5,
-            match_low_quality=False,
-            ignore_iof_thr=-1
-        ),
-        embed_sampler=dict(
-            type='EmbedSampler',
-            num_by_instance=5,
-            add_gt_as_proposals=True
-        ),
-        triplet_sampler=dict(
-            type='DistanceWeightedSampler',
-            batch_k=5,
-        ),
         pos_weight=-1,
         debug=False))
 test_cfg = dict(
@@ -121,7 +103,7 @@ test_cfg = dict(
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.01, nms=dict(type='nms', iou_thr=0.3, dist_thr=0.2), max_per_img=100)
+        score_thr=0.01, nms=dict(type='nms', iou_thr=0.5), max_per_img=100)
     # soft-nms is also supported for rcnn testing
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )
@@ -155,8 +137,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=3,
-    workers_per_gpu=3,
+    samples_per_gpu=2,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'train.json',
@@ -172,9 +154,9 @@ data = dict(
         ann_file=data_root + 'val.json',
         img_prefix=data_root + 'val/',
         pipeline=test_pipeline))
-evaluation = dict(interval=24, metric='bbox')
+evaluation = dict(interval=1, metric='bbox')
 # optimizer
-optimizer = dict(type='SGD', lr=0.004, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -182,13 +164,12 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[24, 36])
-# learning policy
+    step=[32, 44])
 total_epochs = 48
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=4)
 # yapf:disable
 log_config = dict(
-    interval=20,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -196,7 +177,8 @@ log_config = dict(
 # yapf:enable
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/data/sdv2/iterdet/work_dirs/0623_embed'
-load_from = '/data/sdv2/iterdet/work_dirs/0623_embed/epoch_36.pth'
+work_dir = '/workspace/work_dirs/0623_embed'
+load_from = '/workspace/work_dirs/0623_embed/epoch_48.pth'
 resume_from = None
 workflow = [('train', 1)]
+
