@@ -164,12 +164,12 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[32, 44])
-total_epochs = 48
+    step=[64, 88])
+total_epochs = 96
 checkpoint_config = dict(interval=4)
 # yapf:disable
 log_config = dict(
-    interval=10,
+    interval=20,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -177,8 +177,8 @@ log_config = dict(
 # yapf:enable
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/workspace/work_dirs/0623_embed'
-load_from = '/workspace/work_dirs/0623_embed/epoch_48.pth'
+work_dir = '/workspace/work_dirs/faster_0626'
+load_from = None
 resume_from = None
 workflow = [('train', 1)]
 

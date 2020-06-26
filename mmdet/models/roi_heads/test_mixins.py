@@ -77,14 +77,18 @@ class BBoxTestMixin(object):
                                  rescale=False):
         """Test only det bboxes without augmentation."""
         rois = bbox2roi(proposals)
-        bbox_results = self._bbox_forward(x, rois)
+        bbox_reg_results = self._bbox_regress(x, rois)
         img_shape = img_metas[0]['img_shape']
         scale_factor = img_metas[0]['scale_factor']
+        bboxes = self.bbox_head.bbox_coder.decode(
+                rois[:, 1:], bbox_reg_results['bbox_pred'], max_shape=img_shape)
+        new_rois = torch.cat((rois[:, [0]], bboxes), dim=1)
+        bbox_cls_results = self._bbox_classify(x, new_rois)
         det_bboxes, det_labels = self.bbox_head.get_embed_bboxes(
             rois,
-            bbox_results['cls_score'],
-            bbox_results['bbox_pred'],
-            bbox_results['embedding'],
+            bbox_cls_results['cls_score'],
+            bbox_reg_results['bbox_pred'],
+            bbox_cls_results['embedding'],
             img_shape,
             scale_factor,
             rescale=rescale,

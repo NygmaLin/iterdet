@@ -95,7 +95,6 @@ class EmbeddingHead(nn.Module):
 
     @auto_fp16()
     def forward(self, x):
-        # TODO: add embedding branch
         if self.with_avg_pool:
             x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
@@ -108,6 +107,28 @@ class EmbeddingHead(nn.Module):
         else:
             embedding = None
         return cls_score, bbox_pred, embedding
+
+    @auto_fp16()
+    def regress(self, x):
+        if self.with_avg_pool:
+            x = self.avg_pool(x)
+        x = x.view(x.size(0), -1)
+        bbox_pred = self.fc_reg(x) if self.with_reg else None
+        return bbox_pred
+
+    @auto_fp16()
+    def classify(self, x):
+        if self.with_avg_pool:
+            x = self.avg_pool(x)
+        x = x.view(x.size(0), -1)
+        cls_score = self.fc_cls(x) if self.with_cls else None
+        if self.with_embedding:
+            embedding = self.fc_embedding_1(x)
+            embedding = self.fc_embedding_2(embedding)
+            embedding = l2_norm(embedding)
+        else:
+            embedding = None
+        return cls_score, embedding
 
     def _get_target_single(self, pos_bboxes, neg_bboxes, pos_gt_bboxes,
                            pos_gt_labels, cfg):
@@ -290,14 +311,15 @@ class EmbeddingHead(nn.Module):
         if cfg is None:
             return bboxes, scores
         else:
-            det_bboxes, det_labels = multiclass_embed_nms(bboxes, scores, embedding,
+            det_bboxes, det_labels = multiclass_nms(bboxes, scores,
                                                           cfg.score_thr, cfg.nms,
                                                           cfg.max_per_img)
 
             return det_bboxes, det_labels
 
+
     @force_fp32(apply_to=('bbox_preds',))
-    def refine_bboxes(self, rois, labels, bbox_preds, pos_is_gts, img_metas):
+    def refine_bboxes(self, rois, labels, bbox_preds, pos_is_gts, img_metas, keep_gts=False):
         """Refine bboxes during training.
 
         Args:
@@ -371,7 +393,10 @@ class EmbeddingHead(nn.Module):
             keep_inds = pos_is_gts_.new_ones(num_rois)
             keep_inds[:len(pos_is_gts_)] = pos_keep
 
-            bboxes_list.append(bboxes[keep_inds.type(torch.bool)])
+            if not keep_gts:
+                bboxes_list.append(bboxes[keep_inds.type(torch.bool)])
+            else:
+                bboxes_list.append(bboxes)
 
         return bboxes_list
 

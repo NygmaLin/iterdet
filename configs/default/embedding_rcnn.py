@@ -121,7 +121,7 @@ test_cfg = dict(
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.01, nms=dict(type='nms', iou_thr=0.5, dist_thr=1), max_per_img=100)
+        score_thr=0.01, nms=dict(type='nms', iou_thr=0.5), max_per_img=100)
     # soft-nms is also supported for rcnn testing
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )
@@ -169,12 +169,12 @@ data = dict(
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'train.json',
-        img_prefix=data_root + 'train/',
+        ann_file=data_root + 'val.json',
+        img_prefix=data_root + 'val/',
         pipeline=test_pipeline))
-evaluation = dict(interval=1, metric='bbox')
+evaluation = dict(interval=12, metric='bbox')
 # optimizer
-optimizer = dict(type='SGD', lr=0.016, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.015, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -182,9 +182,9 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[24, 36])
+    step=[60, 80])
 # learning policy
-total_epochs = 48
+total_epochs = 96
 checkpoint_config = dict(interval=4)
 # yapf:disable
 log_config = dict(
@@ -197,6 +197,6 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = '/workspace/work_dirs/0623_embed'
-load_from = None
+load_from = '/workspace/work_dirs/0623_embed/epoch_28.pth'
 resume_from = None
 workflow = [('train', 1)]
