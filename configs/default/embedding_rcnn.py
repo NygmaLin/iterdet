@@ -51,7 +51,7 @@ model = dict(
             loss_cls=dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
             loss_bbox=dict(type='L1Loss', loss_weight=1.0),
-            loss_embed=dict(type='TripletLoss', margin=0.2, nu=0.0, loss_weight=1.0)
+            loss_embed=dict(type='TripletLoss', margin=0.5, nu=0.0, loss_weight=1.0)
         )))
 # model training and testing settings
 train_cfg = dict(
@@ -155,8 +155,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=3,
-    workers_per_gpu=3,
+    samples_per_gpu=2,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'train.json',
@@ -172,9 +172,9 @@ data = dict(
         ann_file=data_root + 'val.json',
         img_prefix=data_root + 'val/',
         pipeline=test_pipeline))
-evaluation = dict(interval=12, metric='bbox')
+evaluation = dict(interval=4, metric='bbox')
 # optimizer
-optimizer = dict(type='SGD', lr=0.015, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -182,7 +182,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[60, 80])
+    step=[64, 88])
 # learning policy
 total_epochs = 96
 checkpoint_config = dict(interval=4)
@@ -196,7 +196,7 @@ log_config = dict(
 # yapf:enable
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/workspace/work_dirs/0623_embed'
-load_from = '/workspace/work_dirs/0623_embed/epoch_28.pth'
+work_dir = '/workspace/work_dirs/0626_embed'
+load_from = None
 resume_from = None
 workflow = [('train', 1)]

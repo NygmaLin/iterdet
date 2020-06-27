@@ -100,13 +100,13 @@ class EmbeddingHead(nn.Module):
         x = x.view(x.size(0), -1)
         cls_score = self.fc_cls(x) if self.with_cls else None
         bbox_pred = self.fc_reg(x) if self.with_reg else None
-        if self.with_embedding:
-            embedding = self.fc_embedding_1(x)
-            embedding = self.fc_embedding_2(embedding)
-            embedding = l2_norm(embedding)
-        else:
-            embedding = None
-        return cls_score, bbox_pred, embedding
+        # if self.with_embedding:
+        #     embedding = self.fc_embedding_1(x)
+        #     embedding = self.fc_embedding_2(embedding)
+        #     embedding = l2_norm(embedding)
+        # else:
+        #     embedding = None
+        return cls_score, bbox_pred
 
     @auto_fp16()
     def regress(self, x):
