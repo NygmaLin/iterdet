@@ -2,9 +2,14 @@ import logging
 import sys
 
 import torch
+import torch.nn.functional as F
+import cv2
+import numpy as np
 
 from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_bboxes,
                         merge_aug_masks, multiclass_nms)
+
+import pdb
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +62,7 @@ class BBoxTestMixin(object):
                            rescale=False):
         """Test only det bboxes without augmentation."""
         rois = bbox2roi(proposals)
-        bbox_results = self._bbox_forward(x, rois)
+        bbox_results = self._bbox_forward(x, rois, proposals)
         img_shape = img_metas[0]['img_shape']
         scale_factor = img_metas[0]['scale_factor']
         det_bboxes, det_labels = self.bbox_head.get_bboxes(
@@ -69,6 +74,74 @@ class BBoxTestMixin(object):
             rescale=rescale,
             cfg=rcnn_test_cfg)
         return det_bboxes, det_labels
+
+    def simple_test_bboxes_attention(self,
+                                     x,
+                                     img_metas,
+                                     proposals,
+                                     rcnn_test_cfg,
+                                     rescale=False):
+        """Test only det bboxes without augmentation."""
+        rois = bbox2roi(proposals)
+        bbox_results = self.test_bbox_forward(x, rois)
+        img_shape = img_metas[0]['img_shape']
+        ori_shape = img_metas[0]['ori_shape'][:2]
+
+        im_h, im_w = ori_shape
+        resize_h, resize_w = img_shape[:2]
+
+        scale_factor = img_metas[0]['scale_factor']
+        filename = img_metas[0]['filename']
+
+        det_bboxes, det_labels, keep = self.bbox_head.get_bboxes_attention(
+            rois,
+            bbox_results['cls_score'],
+            bbox_results['bbox_pred'],
+            img_shape,
+            scale_factor,
+            rescale=rescale,
+            cfg=rcnn_test_cfg)
+
+        cam_keep = bbox_results['cam'][keep]
+        rois_keep = rois[keep]
+        proposals_keep = proposals[0][keep]
+        heatmap = np.zeros(img_shape[:2])
+        img = cv2.resize(cv2.imread(filename), (resize_w, resize_h))/255
+
+        for cam, proposal in zip(cam_keep, proposals_keep):
+            xmin, ymin, xmax, ymax = proposal[:4]
+            xmin, ymin, xmax, ymax = int(xmin), int(ymin), int(xmax), int(ymax)
+            w = xmax - xmin
+            h = ymax - ymin
+            cam2proposal = F.interpolate(cam.unsqueeze(dim=0).unsqueeze(dim=0), (h, w))
+
+
+            img_proposal = img[ymin:ymax, xmin:xmax, :]
+            cam2proposal = np.array(cam2proposal.squeeze().cpu())
+            cam2proposal = cam2proposal - np.min(cam2proposal)
+            cam2proposal = cam2proposal / np.max(cam2proposal)
+            #self.show_cam_on_image(img_proposal, cam2proposal)
+
+            #cam2proposal = cv2.resize(cam, (h, w))
+
+            heatmap[ymin:ymax, xmin:xmax] += cam2proposal
+        pdb.set_trace()
+        #heatmap = cv2.resize(np.array(heatmap), (im_w, im_h))
+        heatmap = heatmap - np.min(heatmap)
+        heatmap = heatmap / np.max(heatmap)
+
+        self.show_cam_on_image(img, heatmap)
+        return det_bboxes, det_labels
+
+    def show_cam_on_image(self, img, mask):
+        mask[mask < 0.5] = 0
+        heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)  # 利用色彩空间转换将heatmap凸显
+        heatmap = np.float32(heatmap) / 255  # 归一化
+        cam = heatmap + np.float32(img)  # 将heatmap 叠加到原图
+        cam = cam / np.max(cam)
+        #生成图像
+        #cam = cam[:, :, ::-1]  # BGR > RGB
+        cv2.imwrite('/data/iterdet/bbox_out/heatmap/'+str(np.random.randint(9999)) +'.jpg', np.uint8(255 * cam))
 
     def aug_test_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
         aug_bboxes = []

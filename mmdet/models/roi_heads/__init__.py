@@ -3,6 +3,7 @@ from .bbox_heads import (BBoxHead, ConvFCBBoxHead, DoubleConvFCBBoxHead,
                          Shared2FCBBoxHead, Shared4Conv1FCBBoxHead)
 from .cascade_roi_head import CascadeRoIHead
 from .group_roi_head import GroupRoIHead
+from .attention_base_roi_head import AttentionRoIHead
 from .double_roi_head import DoubleHeadRoIHead
 from .grid_roi_head import GridRoIHead
 from .htc_roi_head import HybridTaskCascadeRoIHead
@@ -17,5 +18,5 @@ __all__ = [
     'HybridTaskCascadeRoIHead', 'GridRoIHead', 'ResLayer', 'BBoxHead',
     'ConvFCBBoxHead', 'Shared2FCBBoxHead', 'Shared4Conv1FCBBoxHead',
     'DoubleConvFCBBoxHead', 'FCNMaskHead', 'HTCMaskHead', 'FusedSemanticHead',
-    'GridHead', 'MaskIoUHead', 'SingleRoIExtractor', 'GroupRoIHead'
+    'GridHead', 'MaskIoUHead', 'SingleRoIExtractor', 'GroupRoIHead', 'AttentionRoIHead'
 ]
