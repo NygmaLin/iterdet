@@ -18,7 +18,7 @@ class ConvFCBBoxHead(BBoxHead):
     """  # noqa: W605
 
     def __init__(self,
-                 num_shared_convs=0,
+                 num_shared_convs=2,
                  num_shared_fcs=0,
                  num_cls_convs=0,
                  num_cls_fcs=0,
